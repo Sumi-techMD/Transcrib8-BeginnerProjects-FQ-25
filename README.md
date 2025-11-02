@@ -1,4 +1,4 @@
-# Transcribe-BP-AISC
+# Transcrib8-BP-AISC
 ## Project Overview
 Convert lecture audio into clear, summarized notes with helpful images/diagrams.  
 
