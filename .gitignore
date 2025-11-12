@@ -1,0 +1,14 @@
+# Ignore local config with secrets
+config.py
+
+# Python cache / env
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+venv/
+.venv/
+
+# Optional: ignore local OS metadata
+*.DS_Store
