@@ -1,0 +1,369 @@
+:root {
+  --bg-page: #f5f3ff;
+  --bg-card: #ffffff;
+  --primary: #7155ff;
+  --primary-soft: #ede8ff;
+  --primary-dark: #5233ff;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --border-soft: #e0ddff;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --shadow-soft: 0 20px 40px rgba(15, 23, 42, 0.08);
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Inter", "Segoe UI", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text-main);
+  background: radial-gradient(circle at top, #f3e8ff 0, var(--bg-page) 50%);
+}
+
+/* NAVBAR */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: rgba(245, 243, 255, 0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(209, 213, 219, 0.4);
+}
+
+.nav-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.logo-dot,
+.logo-bar {
+  display: inline-block;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+}
+
+.logo-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.logo-bar {
+  width: 20px;
+  height: 10px;
+}
+
+.logo-text {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.nav-links a:hover {
+  color: var(--primary-dark);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lang-btn {
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  padding: 6px 12px;
+  font-size: 13px;
+  background-color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.lang-icon {
+  font-size: 14px;
+}
+
+.chevron {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* Buttons */
+
+.btn {
+  border-radius: 999px;
+  border: none;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.06s ease, box-shadow 0.06s ease,
+    background-color 0.1s ease;
+}
+
+.btn-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  box-shadow: 0 12px 24px rgba(88, 28, 135, 0.35);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(88, 28, 135, 0.4);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.btn-ghost:hover {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+/* PAGE LAYOUT */
+
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* HERO */
+
+.hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.hero-title {
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.1;
+  margin: 18px 0 12px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  -webkit-background-clip: text;
+  color: transparent;
+  font-weight: 800;
+}
+
+.hero-subtitle {
+  max-width: 720px;
+  margin: 0 auto;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* Metrics – works fine even with just one box */
+
+.hero-metrics {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+  justify-content: center;
+}
+
+.metric-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 16px;
+  background-color: var(--primary-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: var(--primary);
+}
+
+.metric-text {
+  text-align: left;
+}
+
+.metric-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.metric-link {
+  display: inline-block;
+  font-size: 13px;
+  margin-top: 2px;
+  color: var(--primary-dark);
+  text-decoration: none;
+}
+
+.metric-link:hover {
+  text-decoration: underline;
+}
+
+/* Upload Card */
+
+.upload-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.upload-card {
+  width: 100%;
+  max-width: 760px;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-soft);
+  padding: 26px 36px 32px;
+}
+
+.upload-tabs {
+  display: flex;
+  gap: 32px;
+  border-bottom: 1px solid #e5e7eb;
+  justify-content: center;
+}
+
+.tab {
+  position: relative;
+  border: none;
+  background: none;
+  padding: 10px 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.tab.active {
+  color: #111827;
+}
+
+.tab.active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+}
+
+.upload-caption {
+  margin: 18px 0 22px;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.upload-dropzone {
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border-soft);
+  background-color: #faf5ff;
+  padding: 28px 24px 22px;
+  text-align: center;
+}
+
+.dropzone-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.dropzone-or {
+  margin: 10px 0 12px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dropzone-note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 900px) {
+  .nav-inner {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .nav-links {
+    display: none; /* hide menu on small screens for now */
+  }
+
+  .hero-title {
+    font-size: 32px;
+  }
+
+  .upload-card {
+    padding: 22px 20px 26px;
+  }
+}
+
+@media (max-width: 600px) {
+  .metric {
+    min-width: 0;
+  }
+
+  .upload-dropzone {
+    padding: 24px 16px 20px;
+  }
+}
