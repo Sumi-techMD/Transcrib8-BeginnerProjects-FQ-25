@@ -41,6 +41,26 @@
         and key questions, and lets you export the text in different formats.
       </p>
 
+        <section class="Steps-To-Transcribe">
+            <h2 class="How-To-Transcribe">
+                How to Transcribe Audio to Text:
+            </h2>
+
+            <p class="Step-1">
+                Upload your audio by dragging the file into the box below
+            </p>
+
+            <p class="Step-2">
+                Click on the "Transcribe Now" button to start the transcribing process!
+            </p>
+
+            <p class="Step-3">
+                Once the transcribing is complete, export the text file via PDF, text document, etc!
+            </p>
+        </section>
+        
+    </section>
+
     <!-- Upload card -->
     <section class="upload-wrapper">
       <div class="upload-card">
@@ -53,23 +73,53 @@
           Upload audio/video files from device to transcribe
         </p>
 
-        <div class="upload-dropzone">
+        <div class="upload-dropzone" id="upload-dropzone">
           <p class="dropzone-title">Drag files here to upload</p>
           <p class="dropzone-or">OR</p>
-          <button class="btn btn-primary">
+
+          <!-- Upload button -->
+          <button class="btn btn-primary" id="upload-button">
             ⬆ Upload a file
           </button>
+
+            <!-- Hidden real file input -->
+          <input
+            type="file"
+            id="file-input"
+            accept="audio/*,video/*"
+            style="display: none;"
+          />
+
+            <!-- Display selected file info -->
+          <div id="file-info" class="file-info"></div>
 
           <p class="dropzone-note">
             Audio: aac, amr, awb, flac, m4a, mka, mp2, mp3, oga, ogg, opus, wav, weba, webm, wma
           </p>
-          
+
           <p class="dropzone-note">
             Video: 3gp, mkv, mov, mp4, mpg, ts, webm, wmv
           </p>
         </div>
       </div>
     </section>
+
+    <!-- Transcribe controls + result -->
+    <section class="results-wrapper">
+      <div class="results-card">
+        <button class="btn btn-primary" id="transcribe-button">
+          🎧 Transcribe Now
+        </button>
+
+        <p id="status-message" class="status-message"></p>
+
+        <h2 class="results-title">Your Audio Transcribed Notes:</h2>
+        <pre id="transcript-output" class="transcript-output"></pre>
+      </div>
+    </section>
+
   </main>
+
+  <script src="script.js"></script>
 </body>
 </html>

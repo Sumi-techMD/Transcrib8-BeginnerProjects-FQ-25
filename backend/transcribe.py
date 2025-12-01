@@ -2,7 +2,8 @@ import os
 import sys
 from typing import Optional
 
-import openai
+# New OpenAI client import for openai>=1.0
+from openai import OpenAI
 
 try:
     # Prefer config.py if present (local, ignored file)
@@ -29,27 +30,33 @@ def transcribe_audio(audio_file_path: str) -> str:
     Raises:
         RuntimeError: if API key is missing or request fails.
     """
+
     api_key = get_api_key()
     if not api_key:
         raise RuntimeError(
             "OpenAI API key not found. Set it in a local config.py or the OPENAI_API_KEY environment variable."
         )
 
-    openai.api_key = api_key
+    # Create a new OpenAI client using the correct syntax
+    client = OpenAI(api_key=api_key)
 
     print(f"Transcribing {audio_file_path}...")
+
     try:
         with open(audio_file_path, "rb") as audio_file:
-            # Uses the OpenAI python client to call Whisper (model name may vary)
-            transcript = openai.Audio.transcribe("whisper-1", audio_file)
+            #    Correct replacement for the old: (because call has been now updated)
+            #    openai.Audio.transcribe("whisper-1", audio_file)
+            response = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+            )
+
     except FileNotFoundError:
         raise RuntimeError(f"Audio file not found: {audio_file_path}")
     except Exception as e:
         raise RuntimeError(f"Transcription failed: {e}")
 
-    # The library returns an object with a .text attribute in many wrappers
-    # Fall back to str() if not available.
-    return getattr(transcript, "text", str(transcript))
+    return response.text
 
 
 def _cli() -> None:

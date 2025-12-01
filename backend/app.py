@@ -3,9 +3,26 @@ import tempfile
 from flask import Flask, request, jsonify
 from openai import OpenAI
 
-app = Flask(__name__)
+# Serve static files (index.html, script.js, styles.css) from THIS folder
+app = Flask(__name__, static_folder=".", static_url_path="")
 
-whisper = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# Load API key from config.py or env
+try:
+    from config import OPENAI_API_KEY
+except ImportError:
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+whisper = OpenAI(api_key=OPENAI_API_KEY)
+
+
+@app.route("/")
+def index():
+    """
+    When you go to http://127.0.0.1:5000/ or http://localhost:5000/,
+    this route returns index.html from the current folder.
+    """
+    return app.send_static_file("index.html")
+
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
@@ -27,12 +44,16 @@ def transcribe():
                 model="whisper-1"
             )
             
-        os.remove(temp_audio_path)
-        return jsonify({'transcription': transcription['text']})
+        transcript_text = transcription.text
+        return jsonify({'transcription': transcript_text})
     
     except Exception as e:
-        os.remove(temp_audio_path)
+        print("Transcription error:", repr(e)) # prints the error
         return jsonify({'error': str(e)}), 500
     
+    finally:
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
 if __name__ == '__main__':
     app.run(debug=True, host='localhost', port=5000)
