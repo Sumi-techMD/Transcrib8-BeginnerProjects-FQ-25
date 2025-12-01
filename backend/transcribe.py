@@ -1,16 +1,23 @@
 """
-Audio transcription module using Whisper API. """
+Audio transcription module using Groq Whisper Large V3.
+
+Change summary:
+- Previously this module used OpenAI Whisper (model="whisper-1").
+- We switched to Groq's whisper-large-v3 to avoid the 20MB limit and improve throughput.
+- All client initialization and transcription calls now use the Groq SDK.
+
+Note: If your editor shows import errors or odd syntax diagnostics after this change,
+it's usually the Python extension needing a refresh. Verify that the 'groq' package
+is installed (we added it to backend/requirements.txt) and restart VS Code.
+"""
 
 import os
 import sys
 from pathlib import Path
 from typing import Optional
 
-<<<<<<< HEAD
 # New OpenAI client import for openai>=1.0
-=======
->>>>>>> d7b627174a84e7694ea3f5f68207c3842c1ca0b7
-from openai import OpenAI
+from groq import Groq  # CHANGED: using Groq SDK instead of OpenAI for transcription
 
 # import config if it exists locally
 try:
@@ -20,65 +27,43 @@ except ImportError:
     _config_key = None
 
 
-def get_api_key() -> str:
-    """Get OpenAI API key from config.py or environment variable.
-    
-    Priority:
-    1. OPENAI_API_KEY from local config.py (ignored by git)
-    2. OPENAI_API_KEY environment variable
-    
-    Returns:
-        str: The API key
-        
-    Raises:
-        ValueError: If no API key is found
+def get_groq_key() -> str:
+    """Get Groq API key from config.py or environment variable.
+
+    CHANGED: Previously we looked up OPENAI_API_KEY here for Whisper.
+    Now we load GROQ_API_KEY for Groq's whisper-large-v3.
     """
-<<<<<<< HEAD
-
-    api_key = get_api_key()
-    if not api_key:
-        raise RuntimeError(
-            "OpenAI API key not found. Set it in a local config.py or the OPENAI_API_KEY environment variable."
-        )
-
-    # Create a new OpenAI client using the correct syntax
-    client = OpenAI(api_key=api_key)
-
-    print(f"Transcribing {audio_file_path}...")
-
-    try:
-        with open(audio_file_path, "rb") as audio_file:
-            #    Correct replacement for the old: (because call has been now updated)
-            #    openai.Audio.transcribe("whisper-1", audio_file)
-            response = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-            )
-
-    except FileNotFoundError:
-        raise RuntimeError(f"Audio file not found: {audio_file_path}")
-    except Exception as e:
-        raise RuntimeError(f"Transcription failed: {e}")
-
-    return response.text
-=======
-    key = _config_key or os.getenv("OPENAI_API_KEY")
-    
-    if not key:
-        raise ValueError(
-            "OpenAI API key not found.\n"
-            "Set it in one of these ways:\n"
-            "  1. Create a local config.py with: OPENAI_API_KEY = 'sk-...'\n"
-            "  2. Set environment variable: $env:OPENAI_API_KEY = 'sk-...'\n"
-            "Visit https://platform.openai.com/account/api-keys to get a key."
-        )
-    
-    return key
->>>>>>> d7b627174a84e7694ea3f5f68207c3842c1ca0b7
+    # Try environment variable first
+    key = os.getenv("GROQ_API_KEY")
+    if key:
+        return key
+    # Fallback to config.py at repo root
+    config_path = Path(__file__).parent.parent / "config.py"
+    if config_path.exists():
+        try:
+            for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
+                try:
+                    with open(config_path, "r", encoding=encoding) as f:
+                        content = f.read()
+                        if "GROQ_API_KEY" in content:
+                            for line in content.splitlines():
+                                if line.strip().startswith("GROQ_API_KEY"):
+                                    key = line.split("=")[1].strip().strip('"').strip("'")
+                                    if key:
+                                        return key
+                    break
+                except UnicodeDecodeError:
+                    continue
+        except Exception:
+            pass
+    raise ValueError("Groq API key not found. Set GROQ_API_KEY env var or in config.py")
 
 
 def transcribe_audio(audio_file_path: str, language: Optional[str] = None) -> dict:
-    """Transcribe an audio file using OpenAI Whisper.
+    """Transcribe an audio file using Groq whisper-large-v3.
+
+    CHANGED: Replaced OpenAI Whisper client calls with Groq client calls.
+    """
     
     Args:
         audio_file_path: Path to the audio file (supports mp3, mp4, mpeg, mpga, m4a, wav, webm)
@@ -97,21 +82,19 @@ def transcribe_audio(audio_file_path: str, language: Optional[str] = None) -> di
     if not audio_path.exists():
         raise FileNotFoundError(f"Audio file not found: {audio_file_path}")
     
-    # Get API key
-    api_key = get_api_key()
-    
-    # Initialize OpenAI client
-    client = OpenAI(api_key=api_key)
+    # CHANGED: Get Groq API key and initialize Groq client
+    api_key = get_groq_key()
+    client = Groq(api_key=api_key)
     
     print(f"📝 Transcribing: {audio_path.name}")
     print(f" File size: {audio_path.stat().st_size / (1024*1024):.2f} MB")
     print(" Processing... (this may take a minute or two)\n")
     
     try:
-        # Open audio file and send to Whisper API
+        # CHANGED: Send to Groq Whisper Large V3 (model="whisper-large-v3")
         with open(audio_path, "rb") as audio_file:
             transcript = client.audio.transcriptions.create(
-                model="whisper-1",
+                model="whisper-large-v3",
                 file=audio_file,
                 language=language,  # Optional: specify language for better accuracy
             )
@@ -134,7 +117,10 @@ def transcribe_with_options(
     temperature: float = 0,
     response_format: str = "text"
 ) -> dict:
-    """Advanced transcription with additional Whisper options.
+    """Advanced transcription with additional options (Groq).
+
+    CHANGED: This path also uses Groq and the whisper-large-v3 model.
+    """
     
     Args:
         audio_file_path: Path to audio file
@@ -150,16 +136,16 @@ def transcribe_with_options(
     if not audio_path.exists():
         raise FileNotFoundError(f"Audio file not found: {audio_file_path}")
     
-    api_key = get_api_key()
-    client = OpenAI(api_key=api_key)
+    api_key = get_groq_key()  # CHANGED
+    client = Groq(api_key=api_key)  # CHANGED
     
     print(f"📝 Advanced transcription: {audio_path.name}")
     print(f" Format: {response_format} | Language: {language or 'auto'} | Prompt: {'Yes' if prompt else 'No'}\n")
     
     try:
         with open(audio_path, "rb") as audio_file:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1",
+            transcript = client.audio.transcriptions.create(  # CHANGED
+                model="whisper-large-v3",  # CHANGED
                 file=audio_file,
                 language=language,
                 prompt=prompt,
@@ -227,8 +213,4 @@ def main():
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-    _cli()
-=======
     main()
->>>>>>> d7b627174a84e7694ea3f5f68207c3842c1ca0b7

@@ -6,6 +6,7 @@ from flask_cors import CORS
 from pathlib import Path
 from werkzeug.utils import secure_filename
 from openai import OpenAI
+from groq import Groq
 
 # Import note generation functions from our notes module
 from notes import generate_structured_notes
@@ -52,7 +53,7 @@ def get_api_key():
         "Set it in ../config.py or OPENAI_API_KEY environment variable."
     )
 
-# Initialize OpenAI client
+# Initialize OpenAI client (for notes)
 try:
     client = OpenAI(api_key=get_api_key())
     print("✅ OpenAI client initialized successfully")
@@ -60,6 +61,36 @@ except ValueError as e:
     print(f"❌ Error: {e}")
     print("Please create a config.py file with: OPENAI_API_KEY = 'your-key-here'")
     sys.exit(1)
+
+# Initialize Groq client (for transcription)
+def get_groq_key() -> str:
+    key = os.getenv("GROQ_API_KEY")
+    if key:
+        return key
+    # Also allow defining in config.py for convenience
+    config_path = Path(__file__).parent.parent / "config.py"
+    if config_path.exists():
+        try:
+            for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
+                try:
+                    with open(config_path, "r", encoding=encoding) as f:
+                        content = f.read()
+                        if "GROQ_API_KEY" in content:
+                            for line in content.splitlines():
+                                if line.strip().startswith("GROQ_API_KEY"):
+                                    key = line.split("=")[1].strip().strip('"').strip("'")
+                                    if key:
+                                        print(f"✅ Loaded GROQ API key from config.py (encoding: {encoding})")
+                                        return key
+                    break
+                except UnicodeDecodeError:
+                    continue
+        except Exception as e:
+            print(f"Warning: Could not read config.py for GROQ_API_KEY: {e}")
+    raise ValueError("Groq API key not found. Set GROQ_API_KEY env var or in config.py")
+
+groq_client = Groq(api_key=get_groq_key())
+print("✅ Groq client initialized successfully")
 
 # Allowed audio file extensions
 ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".wav", ".m4a", ".mpeg", ".mpga", ".webm"}
@@ -89,7 +120,7 @@ def home():
 @app.route("/transcribe", methods=["POST"])
 def transcribe():
     """
-    Transcribe an audio file using OpenAI Whisper API.
+    Transcribe an audio file using Groq's whisper-large-v3 model.
     Uses temporary files for processing (automatically cleaned up).
     
     Request: multipart/form-data with 'file' field containing audio
@@ -119,11 +150,11 @@ def transcribe():
     try:
         print(f"🎙️  Transcribing: {file.filename}")
         
-        # Open and transcribe the audio file using Whisper
+        # Open and transcribe the audio file using Groq Whisper Large V3
         with open(temp_audio_path, 'rb') as audio_file:
-            transcription = client.audio.transcriptions.create(
+            transcription = groq_client.audio.transcriptions.create(
                 file=audio_file,
-                model="whisper-1"
+                model="whisper-large-v3"
             )
         
         # Clean up temp file
