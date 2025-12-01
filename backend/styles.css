@@ -596,3 +596,46 @@ body {
     padding: 24px 16px 20px;
   }
 }
+
+/* Added transcript + notes styling */
+.status-message {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+  min-height: 20px;
+}
+
+.transcript-output {
+  padding: 16px;
+  background-color: #fafafa;
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--primary);
+  white-space: pre-wrap;
+  line-height: 1.6;
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 14px;
+  font-family: var(--font-sans);
+}
+
+#generate-notes-button {
+  margin-top: 8px;
+}
+
+.notes-content {
+  margin-top: 12px;
+}
+
+.notes-error {
+  color: #991b1b;
+  background: #fee2e2;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  border-left: 3px solid #dc2626;
+  font-size: 14px;
+}
+
+.notes-loading {
+  font-style: italic;
+  color: var(--text-muted);
+}

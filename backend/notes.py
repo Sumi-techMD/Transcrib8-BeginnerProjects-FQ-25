@@ -10,31 +10,38 @@ import json
 from pathlib import Path
 from typing import Optional, List
 from openai import OpenAI
+from dotenv import load_dotenv
 
 
 def get_api_key() -> str:
-    """Get OpenAI API key from config.py or environment variable."""
+    """Get OpenAI API key preferring environment/.env, with optional legacy config.py fallback."""
+    # Load environment variables from .env if present
+    load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
     key = os.getenv("OPENAI_API_KEY")
     if key:
         return key
+    # Legacy fallback: parse config.py if present (kept for compatibility)
     config_path = Path(__file__).parent.parent / "config.py"
     if config_path.exists():
-        for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
+        for encoding in ["utf-8", "utf-8-sig", "utf-16", "utf-16-le", "latin-1", "cp1252"]:
             try:
                 with open(config_path, "r", encoding=encoding) as f:
                     content = f.read()
+                # Strip BOM and search
+                content = content.lstrip("\ufeff")
                 if "OPENAI_API_KEY" in content:
-                    for line in content.splitlines():
-                        if line.strip().startswith("OPENAI_API_KEY"):
-                            key = line.split("=")[1].strip().strip("\"").strip("'")
+                    for raw in content.splitlines():
+                        line = raw.lstrip("\ufeff").strip()
+                        if line.startswith("OPENAI_API_KEY"):
+                            key = line.split("=", 1)[1].strip().strip('"').strip("'")
                             if key:
                                 return key
                 break
-            except UnicodeDecodeError:
+            except (UnicodeDecodeError, UnicodeError):
                 continue
             except Exception as e:  # pragma: no cover
                 print(f"Warning: Could not parse config.py: {e}")
-    raise ValueError("OpenAI API key not found. Set in config.py or environment.")
+    raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY in environment or .env file.")
 
 
 # Configuration constants (can be overridden with env vars)

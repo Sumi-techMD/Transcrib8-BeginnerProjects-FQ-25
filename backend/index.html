@@ -5,7 +5,6 @@
   <title>AISC Audio Transcrib8r – Convert Lecture Audios to Text</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css" />
-  <script src="app.js" defer></script>
 </head>
 
 <body>
@@ -104,17 +103,22 @@
       </div>
     </section>
 
-    <!-- Transcribe controls + result -->
-    <section class="results-wrapper">
-      <div class="results-card">
-        <button class="btn btn-primary" id="transcribe-button">
-          🎧 Transcribe Now
-        </button>
-
+    <!-- Transcribe + Notes Results -->
+    <section class="results-container">
+      <!-- Transcription Card -->
+      <div class="result-card">
+        <h2 class="result-title">Transcription</h2>
+        <button class="btn btn-primary" id="transcribe-button">🎧 Transcribe Now</button>
         <p id="status-message" class="status-message"></p>
+        <div id="transcript-output" class="transcript-output" aria-live="polite"></div>
+      </div>
 
-        <h2 class="results-title">Your Audio Transcribed Notes:</h2>
-        <pre id="transcript-output" class="transcript-output"></pre>
+      <!-- Notes Generation Card -->
+      <div class="result-card">
+        <h2 class="result-title">Study Notes</h2>
+        <button class="btn btn-primary" id="generate-notes-button" disabled>📝 Generate Notes</button>
+        <p id="notes-status" class="status-message"></p>
+        <div id="notes-output" class="notes-content" aria-live="polite"></div>
       </div>
     </section>
 

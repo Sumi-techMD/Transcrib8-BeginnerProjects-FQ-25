@@ -7,6 +7,8 @@ from pathlib import Path
 from werkzeug.utils import secure_filename
 from openai import OpenAI
 from groq import Groq
+from dotenv import load_dotenv
+import traceback
 
 # Import note generation functions from our notes module
 from notes import generate_structured_notes
@@ -16,42 +18,16 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024  # 200 MB upload limit
 
+# Load environment variables from .env (optional)
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+
 # Get API key from config.py or environment variable
 def get_api_key():
-    """Get OpenAI API key from config.py file or environment variable."""
-    # First try environment variable
+    """Get OpenAI API key from environment (or .env)."""
     key = os.getenv('OPENAI_API_KEY')
     if key:
         return key
-    
-    # Try to read from ../config.py
-    config_path = Path(__file__).parent.parent / 'config.py'
-    if config_path.exists():
-        try:
-            # Try different encodings
-            for encoding in ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']:
-                try:
-                    with open(config_path, 'r', encoding=encoding) as f:
-                        content = f.read()
-                        # Extract key using simple string parsing
-                        if 'OPENAI_API_KEY' in content:
-                            for line in content.split('\n'):
-                                if line.strip().startswith('OPENAI_API_KEY'):
-                                    # Extract the key from quotes
-                                    key = line.split('=')[1].strip().strip('"').strip("'")
-                                    if key:
-                                        print(f"✅ Loaded API key from config.py (encoding: {encoding})")
-                                        return key
-                    break
-                except UnicodeDecodeError:
-                    continue
-        except Exception as e:
-            print(f"Warning: Could not read config.py: {e}")
-    
-    raise ValueError(
-        "OpenAI API key not found. "
-        "Set it in ../config.py or OPENAI_API_KEY environment variable."
-    )
+    raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY in environment or .env file.")
 
 # Initialize OpenAI client (for notes)
 try:
@@ -64,30 +40,11 @@ except ValueError as e:
 
 # Initialize Groq client (for transcription)
 def get_groq_key() -> str:
+    """Get Groq API key from environment (or .env)."""
     key = os.getenv("GROQ_API_KEY")
     if key:
         return key
-    # Also allow defining in config.py for convenience
-    config_path = Path(__file__).parent.parent / "config.py"
-    if config_path.exists():
-        try:
-            for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
-                try:
-                    with open(config_path, "r", encoding=encoding) as f:
-                        content = f.read()
-                        if "GROQ_API_KEY" in content:
-                            for line in content.splitlines():
-                                if line.strip().startswith("GROQ_API_KEY"):
-                                    key = line.split("=")[1].strip().strip('"').strip("'")
-                                    if key:
-                                        print(f"✅ Loaded GROQ API key from config.py (encoding: {encoding})")
-                                        return key
-                    break
-                except UnicodeDecodeError:
-                    continue
-        except Exception as e:
-            print(f"Warning: Could not read config.py for GROQ_API_KEY: {e}")
-    raise ValueError("Groq API key not found. Set GROQ_API_KEY env var or in config.py")
+    raise ValueError("Groq API key not found. Set GROQ_API_KEY in environment or .env file.")
 
 groq_client = Groq(api_key=get_groq_key())
 print("✅ Groq client initialized successfully")
@@ -131,6 +88,13 @@ def transcribe():
         return jsonify({'error': 'No file provided'}), 400
     
     file = request.files['file']
+    # Log request metadata to help diagnose issues
+    try:
+        print(f"➡️  Request Content-Type: {request.headers.get('Content-Type')}")
+        print(f"➡️  Files keys: {list(request.files.keys())}")
+        print(f"➡️  Incoming file: name={file.filename}, mimetype={getattr(file, 'mimetype', 'unknown')}")
+    except Exception:
+        pass
     
     # Check if filename is empty
     if file.filename == '':
@@ -147,35 +111,90 @@ def transcribe():
         file.save(temp_audio.name)
         temp_audio_path = temp_audio.name
     
+    # Check file size (Groq has 25MB limit)
+    file_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
+    if file_size_mb > 25:
+        try:
+            os.remove(temp_audio_path)
+        except Exception:
+            pass
+        return jsonify({
+            'error': f"File too large ({file_size_mb:.1f} MB). Groq supports up to 25 MB. Please compress or trim your audio file."
+        }), 400
+    
     try:
         print(f"🎙️  Transcribing: {file.filename}")
-        
+        # Log basic file info
+        try:
+            size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
+            print(f"   Size: {size_mb:.2f} MB | Ext: {Path(file.filename).suffix}")
+        except Exception:
+            pass
+
         # Open and transcribe the audio file using Groq Whisper Large V3
         with open(temp_audio_path, 'rb') as audio_file:
             transcription = groq_client.audio.transcriptions.create(
                 file=audio_file,
                 model="whisper-large-v3"
             )
-        
+
         # Clean up temp file
-        os.remove(temp_audio_path)
-        
-        print(f"✅ Transcription complete!")
-        
+        try:
+            os.remove(temp_audio_path)
+        except Exception:
+            pass
+
+        print("✅ Transcription complete!")
+        try:
+            print(f"   Transcript length: {len(transcription.text)} chars")
+        except Exception:
+            pass
         return jsonify({
             'status': 'success',
             'filename': secure_filename(file.filename),
             'transcription': transcription.text,
             'language': getattr(transcription, 'language', 'auto-detected')
         }), 200
-    
+
     except Exception as e:
         # Clean up temp file on error
-        if os.path.exists(temp_audio_path):
-            os.remove(temp_audio_path)
-        
-        print(f"❌ Transcription error: {str(e)}")
-        return jsonify({'error': f'Transcription failed: {str(e)}'}), 500
+        try:
+            if os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+        except Exception:
+            pass
+
+        # Provide clearer error messages to the frontend
+        msg = str(e)
+        err_type = e.__class__.__name__
+        tb = traceback.format_exc(limit=3)
+        print(f"❌ Transcription error: {err_type}: {msg}\n{tb}")
+
+        # Map common failures to friendly messages
+        if "401" in msg or "Unauthorized" in msg:
+            friendly = "Groq authentication failed. Check GROQ_API_KEY."
+        elif "413" in msg or "too large" in msg.lower() or "request entity too large" in msg.lower():
+            friendly = "File too large for Groq (25 MB limit). Please compress or trim your audio."
+        elif "model" in msg and "not" in msg and "found" in msg:
+            friendly = "Groq model name invalid. Using 'whisper-large-v3'."
+        elif "file" in msg and ("not found" in msg or "invalid" in msg):
+            friendly = "Uploaded file could not be processed. Try a standard mp3/wav."
+        else:
+            friendly = "Something went wrong while transcribing. Please try again."
+
+        return jsonify({'error': friendly, 'details': f"{err_type}: {msg}"}), 500
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    """Simple health check to verify configuration without exposing secrets."""
+    return jsonify({
+        "status": "ok",
+        "groq_key_present": bool(os.getenv("GROQ_API_KEY")),
+        "openai_key_present": bool(os.getenv("OPENAI_API_KEY")),
+        "audio_formats": list(ALLOWED_EXTENSIONS),
+        "max_upload_size_mb": app.config.get("MAX_CONTENT_LENGTH", 0) // (1024 * 1024),
+    }), 200
 
 
 @app.route("/generate-notes", methods=["POST"])
@@ -209,10 +228,19 @@ def generate_notes():
         if format_type not in ["markdown", "json"]:
             return jsonify({"error": "Format must be 'markdown' or 'json'"}), 400
         
-        print(f"Generating {format_type} notes...")
+        print(f"📝 Generating {format_type} notes with title: '{title}'...")
+        print(f"   Transcript length: {len(transcript)} chars")
         
-        # Generate notes using GPT
-        notes = generate_structured_notes(transcript, title, format_type)
+        # Generate notes using GPT with all parameters from notes.py
+        # This function will use MODEL_NAME, MAX_COMPLETION_TOKENS, CHUNK_CHAR_LIMIT from notes.py
+        notes = generate_structured_notes(
+            transcript=transcript,
+            title=title,
+            format_type=format_type,
+            api_key=None  # Will use get_api_key() from notes.py
+        )
+        
+        print(f"✅ Notes generated successfully! Length: {len(notes)} chars")
         
         return jsonify({
             "status": "success",
@@ -224,8 +252,12 @@ def generate_notes():
         }), 200
     
     except Exception as e:
-        print(f"❌ Note generation error: {str(e)}")
-        return jsonify({"error": f"Note generation failed: {str(e)}"}), 500
+        error_msg = str(e)
+        error_type = e.__class__.__name__
+        print(f"❌ Note generation error ({error_type}): {error_msg}")
+        import traceback
+        print(traceback.format_exc(limit=3))
+        return jsonify({"error": f"Note generation failed: {error_msg}"}), 500
 
 
 if __name__ == "__main__":

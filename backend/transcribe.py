@@ -4,7 +4,7 @@ Audio transcription module using Groq Whisper Large V3.
 Change summary:
 - Previously this module used OpenAI Whisper (model="whisper-1").
 - We switched to Groq's whisper-large-v3 to avoid the 20MB limit and improve throughput.
-- All client initialization and transcription calls now use the Groq SDK.
+- All initialization and transcription calls now use the Groq SDK.
 
 Note: If your editor shows import errors or odd syntax diagnostics after this change,
 it's usually the Python extension needing a refresh. Verify that the 'groq' package
@@ -16,15 +16,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# New OpenAI client import for openai>=1.0
 from groq import Groq  # CHANGED: using Groq SDK instead of OpenAI for transcription
-
-# import config if it exists locally
-try:
-    from config import OPENAI_API_KEY  # type: ignore
-    _config_key = OPENAI_API_KEY
-except ImportError:
-    _config_key = None
+from dotenv import load_dotenv
 
 
 def get_groq_key() -> str:
@@ -33,45 +26,26 @@ def get_groq_key() -> str:
     CHANGED: Previously we looked up OPENAI_API_KEY here for Whisper.
     Now we load GROQ_API_KEY for Groq's whisper-large-v3.
     """
-    # Try environment variable first
+    # Try environment variable first (supports .env via load_dotenv)
+    load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
     key = os.getenv("GROQ_API_KEY")
     if key:
         return key
-    # Fallback to config.py at repo root
-    config_path = Path(__file__).parent.parent / "config.py"
-    if config_path.exists():
-        try:
-            for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
-                try:
-                    with open(config_path, "r", encoding=encoding) as f:
-                        content = f.read()
-                        if "GROQ_API_KEY" in content:
-                            for line in content.splitlines():
-                                if line.strip().startswith("GROQ_API_KEY"):
-                                    key = line.split("=")[1].strip().strip('"').strip("'")
-                                    if key:
-                                        return key
-                    break
-                except UnicodeDecodeError:
-                    continue
-        except Exception:
-            pass
-    raise ValueError("Groq API key not found. Set GROQ_API_KEY env var or in config.py")
+    raise ValueError("Groq API key not found. Set GROQ_API_KEY in environment or .env file.")
 
 
 def transcribe_audio(audio_file_path: str, language: Optional[str] = None) -> dict:
     """Transcribe an audio file using Groq whisper-large-v3.
 
     CHANGED: Replaced OpenAI Whisper client calls with Groq client calls.
-    """
-    
+
     Args:
         audio_file_path: Path to the audio file (supports mp3, mp4, mpeg, mpga, m4a, wav, webm)
         language: Optional language code (e.g., 'en', 'es', 'fr'). Auto-detected if not provided.
-    
+
     Returns:
         dict: Contains 'text' (transcription), 'language' (detected), and other metadata
-    
+
     Raises:
         FileNotFoundError: If audio file doesn't exist
         ValueError: If API key is missing
@@ -115,20 +89,19 @@ def transcribe_with_options(
     language: Optional[str] = None,
     prompt: Optional[str] = None,
     temperature: float = 0,
-    response_format: str = "text"
+    response_format: str = "text",
 ) -> dict:
     """Advanced transcription with additional options (Groq).
 
     CHANGED: This path also uses Groq and the whisper-large-v3 model.
-    """
-    
+
     Args:
         audio_file_path: Path to audio file
         language: Language code (e.g., 'en', 'es')
         prompt: Optional text to guide the model (e.g., "This is about X-ray physics")
         temperature: Creativity level (0.0 = deterministic, 1.0 = random)
         response_format: 'text', 'json', 'verbose_json', 'srt', 'vtt'
-    
+
     Returns:
         dict: Transcription result with specified format
     """
@@ -200,7 +173,7 @@ def main():
         
         # Save to file
         output_file = Path(audio_file).stem + "_transcript.txt"
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(result["text"])
         print(f"\n💾 Transcript saved to: {output_file}")
     
