@@ -111,25 +111,14 @@ def transcribe():
         file.save(temp_audio.name)
         temp_audio_path = temp_audio.name
     
-    # Check file size (Groq has 25MB limit)
-    file_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
-    if file_size_mb > 25:
-        try:
-            os.remove(temp_audio_path)
-        except Exception:
-            pass
-        return jsonify({
-            'error': f"File too large ({file_size_mb:.1f} MB). Groq supports up to 25 MB. Please compress or trim your audio file."
-        }), 400
-    
     try:
         print(f"🎙️  Transcribing: {file.filename}")
         # Log basic file info
         try:
-            size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
-            print(f"   Size: {size_mb:.2f} MB | Ext: {Path(file.filename).suffix}")
+            file_size_mb = os.path.getsize(temp_audio_path) / (1024 * 1024)
+            print(f"   Size: {file_size_mb:.2f} MB | Ext: {Path(file.filename).suffix}")
         except Exception:
-            pass
+            file_size_mb = None
 
         # Open and transcribe the audio file using Groq Whisper Large V3
         with open(temp_audio_path, 'rb') as audio_file:
@@ -173,8 +162,24 @@ def transcribe():
         # Map common failures to friendly messages
         if "401" in msg or "Unauthorized" in msg:
             friendly = "Groq authentication failed. Check GROQ_API_KEY."
+        elif "429" in msg or "rate limit" in msg.lower():
+            # Try to extract recommended wait time from the message
+            wait_hint = ""
+            try:
+                # e.g., "Please try again in 4m33s"
+                import re
+                m = re.search(r"try again in ([0-9]+m[0-9]+s|[0-9]+s)", msg, re.IGNORECASE)
+                if m:
+                    wait_hint = f" after {m.group(1)}"
+            except Exception:
+                pass
+            friendly = (
+                "Groq rate limit reached for whisper-large-v3."
+                f" Please retry{wait_hint} or reduce audio length (split the file)."
+            )
         elif "413" in msg or "too large" in msg.lower() or "request entity too large" in msg.lower():
-            friendly = "File too large for Groq (25 MB limit). Please compress or trim your audio."
+            size_part = f" ({file_size_mb:.1f} MB)" if isinstance(file_size_mb, (int, float)) else ""
+            friendly = f"File upload failed{size_part}. Large files may timeout during upload. Try: 1) Compress the audio to reduce file size, 2) Convert to MP3 format, or 3) Split into smaller segments."
         elif "model" in msg and "not" in msg and "found" in msg:
             friendly = "Groq model name invalid. Using 'whisper-large-v3'."
         elif "file" in msg and ("not found" in msg or "invalid" in msg):

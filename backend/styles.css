@@ -639,3 +639,36 @@ body {
   font-style: italic;
   color: var(--text-muted);
 }
+
+/* Mindmap bubbles */
+.mindmap {
+  margin-top: 16px;
+}
+
+.mindmap-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--primary-dark);
+}
+
+.mindmap-bubbles {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background-color: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 13px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.bubble .reason {
+  color: var(--text-muted);
+}

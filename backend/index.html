@@ -116,9 +116,16 @@
       <!-- Notes Generation Card -->
       <div class="result-card">
         <h2 class="result-title">Study Notes</h2>
-        <button class="btn btn-primary" id="generate-notes-button" disabled>📝 Generate Notes</button>
+        <div class="action-row">
+          <button class="btn btn-primary" id="generate-notes-button" disabled>📝 Generate Notes</button>
+          <button class="btn" id="download-notes-button" disabled>⬇ Download Notes</button>
+        </div>
         <p id="notes-status" class="status-message"></p>
         <div id="notes-output" class="notes-content" aria-live="polite"></div>
+        <div class="mindmap">
+          <h3 class="mindmap-title">Top Concepts</h3>
+          <div id="mindmap-bubbles" class="mindmap-bubbles" aria-live="polite"></div>
+        </div>
       </div>
     </section>
 

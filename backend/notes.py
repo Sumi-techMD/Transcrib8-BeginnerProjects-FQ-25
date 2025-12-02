@@ -46,30 +46,30 @@ def get_api_key() -> str:
 
 # Configuration constants (can be overridden with env vars)
 MODEL_NAME = os.getenv("NOTES_MODEL", "gpt-3.5-turbo")
-MAX_COMPLETION_TOKENS = int(os.getenv("NOTES_MAX_TOKENS", "1800"))
+MAX_COMPLETION_TOKENS = int(os.getenv("NOTES_MAX_TOKENS", "2200"))
 CHUNK_CHAR_LIMIT = int(os.getenv("NOTES_CHUNK_CHAR_LIMIT", "4000"))
-MAX_CHUNKS = int(os.getenv("NOTES_MAX_CHUNKS", "5"))
+MAX_CHUNKS = int(os.getenv("NOTES_MAX_CHUNKS", "6"))
 
 
 def build_prompt(transcript: str, title: str) -> str:
-    """Build a markdown-focused prompt for structured study notes."""
+    """Build a markdown-focused prompt for structured study notes with mindmap bubbles."""
     return (
         "You are an expert study assistant.\n"
-        "Create clear, exam-focused notes from the transcript.\n"
-        "Analyze the transcript first, then write the notes — do NOT include your thinking steps.\n\n"
+        "Create clear, exam-focused notes from the transcript. Also identify the top study concepts as 'mindmap bubbles'.\n\n"
         f"Title: {title}\n\n"
         "OUTPUT FORMAT (Markdown only):\n"
         "## Summary\n"
-        "- 2-3 sentence overview focusing on what was taught and why it matters.\n\n"
+        "- 2-4 sentence overview that captures scope and stakes.\n\n"
         "## Key Concepts\n"
-        "- 5-10 bullet points.\n"
-        "- Format each like: **Term:** short definition (max 18 words).\n\n"
+        "- 8-15 bullet points. Each: term - short explanation (<=140 chars).\n\n"
+        "## Mindmap Bubbles\n"
+        "- List the 6-10 most important concepts, one per line, using this format: **Concept** — why it matters (<=100 chars).\n\n"
         "## Important Details\n"
-        "- Facts, numbers, formulas (bullet list, each line <120 chars).\n\n"
+        "- 10-25 bullets of facts, numbers, or formulas (each <120 chars).\n\n"
         "## Study Questions\n"
         "- 5 questions (2 easy, 2 medium, 1 hard) - no answers.\n\n"
         "Constraints:\n"
-        "- Be concise.\n- Do not invent unsupported content.\n"
+        "- Be detailed and dense with useful information.\n- Do not invent unsupported content.\n- Prefer specific terminology and examples from transcript.\n"
         "- Avoid generic filler.\n\n"
         "TRANSCRIPT START\n"
         f"{transcript}\n"
@@ -78,10 +78,10 @@ def build_prompt(transcript: str, title: str) -> str:
 
 
 def build_json_prompt(transcript: str, title: str) -> str:
-    """Build a JSON-focused prompt for structured study notes."""
+    """Build a JSON-focused prompt for structured study notes including mindmap bubbles."""
     return (
         "You are an expert study assistant.\n"
-        "Extract structured study notes from the transcript below.\n"
+    "Extract structured study notes from the entire transcript below.\n"
         "Return ONLY valid JSON.\n\n"
         "Fields:\n"
         "  title: string\n"
@@ -89,34 +89,15 @@ def build_json_prompt(transcript: str, title: str) -> str:
         "  key_concepts: array of objects {term, explanation}\n"
         "  important_details: array of strings (facts, formulas, numbers)\n"
         "  study_questions: array of objects {question, difficulty in ['easy','medium','hard']}\n"
+        "  mindmap_bubbles: array of objects {concept, reason, importance} (importance integer 1-5; top 6-10 most important concepts)\n"
         "  transcript_character_count: integer\n\n"
         "Rules:\n"
-        " - Do not hallucinate content.\n"
+    " - Cover the whole lecture; avoid repetition and merge overlapping points.\n"
+    " - Do not hallucinate content.\n"
         " - Provide exactly 5 study_questions (2 easy, 2 medium, 1 hard).\n"
-        " - Keep explanations concise and factual.\n"
-        " - important_details should be specific facts, formulas, numbers, or named ideas.\n\n"
-         "EXAMPLE OUTPUT (Follow this format exactly):\n"
-        "{\n"
-        f'  "title": "Photosynthesis Basics",\n'
-        f'  "summary": "Photosynthesis is the process by which plants convert sunlight into chemical energy. It involves chlorophyll and occurs mainly in chloroplasts.",\n'
-        f'  "key_concepts": [\n'
-        f'    {{"term": "Chlorophyll", "explanation": "Pigment that absorbs light for photosynthesis"}},\n'
-        f'    {{"term": "Glucose", "explanation": "Sugar molecule produced by photosynthesis"}}\n'
-        f'  ],\n'
-        f'  "important_details": [\n'
-        f'    "Photosynthesis occurs in chloroplasts",\n'
-        f'    "6CO2 + 6H2O → C6H12O6 + 6O2"\n'
-        f'  ],\n'
-        f'  "study_questions": [\n'
-        f'    {{"question": "What pigment captures light?", "difficulty": "easy"}},\n'
-        f'    {{"question": "Where does photosynthesis occur?", "difficulty": "easy"}},\n'
-        f'    {{"question": "What is the purpose of glucose?", "difficulty": "medium"}},\n'
-        f'    {{"question": "Explain the chemical formula for photosynthesis.", "difficulty": "medium"}},\n'
-        f'    {{"question": "Predict how lack of sunlight affects glucose production.", "difficulty": "hard"}}\n'
-        f'  ],\n'
-        f'  "transcript_character_count": 240\n'
-        "}\n\n"
-        f'"title": "{title}"\n\n'
+        " - Provide 10-20 important_details entries if the transcript length permits.\n"
+        " - Provide 8-15 key_concepts entries if the transcript length permits.\n"
+        " - Keep explanations concise and factual.\n\n"
         "TRANSCRIPT START\n"
         f"{transcript}\n"
         "TRANSCRIPT END"
@@ -134,13 +115,24 @@ def _chunk_transcript(transcript: str) -> List[str]:
         chunks.append(transcript[i : i + CHUNK_CHAR_LIMIT])
     return chunks
 
+def _dedupe_lines(lines: List[str]) -> List[str]:
+    """Remove near-duplicate lines by normalized content."""
+    seen = set()
+    out: List[str] = []
+    for line in lines:
+        norm = " ".join(line.lower().split())[:200]
+        if norm and norm not in seen:
+            seen.add(norm)
+            out.append(line)
+    return out
+
 
 def _summarize_chunk(client: OpenAI, chunk: str, idx: int, total: int) -> str:
     """Summarize a chunk for later aggregation."""
     prompt = (
         f"You are condensing part {idx}/{total} of a lecture transcript.\n"
-        "Extract 3-6 bullet points capturing key concepts or facts.\n"
-        "Avoid repetition.\nPART START\n"
+        "Extract 4-8 bullet points capturing unique key concepts, formulas, or facts.\n"
+        "Avoid repetition across parts; include only novel, salient information.\nPART START\n"
         f"{chunk}\nPART END"
     )
     resp = client.chat.completions.create(
@@ -152,7 +144,10 @@ def _summarize_chunk(client: OpenAI, chunk: str, idx: int, total: int) -> str:
         temperature=0.3,
         max_tokens=300,
     )
-    return resp.choices[0].message.content.strip()
+    content = resp.choices[0].message.content.strip()
+    bullets = [l.strip("- ") for l in content.splitlines() if l.strip()]
+    bullets = _dedupe_lines(bullets)
+    return "\n".join(f"- {b}" for b in bullets)
 
 
 def generate_structured_notes(
@@ -190,9 +185,14 @@ def generate_structured_notes(
                 _summarize_chunk(client, chunk, i + 1, len(chunks))
                 for i, chunk in enumerate(chunks)
             ]
+            flat = []
+            for s in summaries:
+                flat.extend([l.strip("- ") for l in s.splitlines() if l.strip()])
+            flat = _dedupe_lines(flat)
+            flat_text = "\n".join(f"- {b}" for b in flat)
             condensed = (
                 f"SYNTHESIZED BULLET SUMMARIES (original length {len(transcript)} chars)\n"
-                + "\n".join(summaries)
+                + flat_text
             )
 
         if format_type.lower() == "json":
@@ -210,7 +210,7 @@ def generate_structured_notes(
                 },
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.6,
+            temperature=0.5,
             max_tokens=MAX_COMPLETION_TOKENS,
         )
         output = response.choices[0].message.content.strip()
@@ -220,14 +220,29 @@ def generate_structured_notes(
                 data = json.loads(output)
                 data.setdefault("title", title)
                 data.setdefault("transcript_character_count", len(transcript))
+                # Ensure mindmap_bubbles exists
+                data.setdefault("mindmap_bubbles", [])
+                # Normalize importance scores (1-5)
+                if isinstance(data.get("mindmap_bubbles"), list):
+                    for b in data["mindmap_bubbles"]:
+                        if isinstance(b, dict):
+                            imp = b.get("importance", 3)
+                            try:
+                                imp_int = int(imp)
+                            except Exception:
+                                imp_int = 3
+                            b["importance"] = max(1, min(5, imp_int))
                 return json.dumps(data, indent=2)
             except json.JSONDecodeError:
+                # Try to extract a mindmap section from text if the model returned markdown-like output
+                bubbles = _extract_bubbles_from_text(output)
                 return json.dumps(
                     {
                         "title": title,
                         "raw_output": output,
                         "error": "JSON parsing failed",
                         "transcript_character_count": len(transcript),
+                        "mindmap_bubbles": bubbles,
                     },
                     indent=2,
                 )
@@ -253,8 +268,12 @@ def generate_simple_notes(
                     {"term": f"Point {i+1}", "explanation": kp[:120]}
                     for i, kp in enumerate(key_points)
                 ],
-                "important_details": key_points[:5],
+                "important_details": key_points[:10],
                 "study_questions": [],
+                "mindmap_bubbles": [
+                    {"concept": f"Concept {i+1}", "reason": kp[:90], "importance": 3}
+                    for i, kp in enumerate(key_points[:8])
+                ],
                 "transcript_character_count": len(transcript),
             },
             indent=2,
@@ -269,6 +288,56 @@ def generate_simple_notes(
         lines.append(f"- {kp}")
     lines.extend(["", "## Full Transcript", transcript])
     return "\n".join(lines)
+
+
+def _extract_bubbles_from_text(text: str) -> List[dict]:
+    """Heuristic: parse lines under 'Mindmap Bubbles' to build bubble objects.
+    Expected format per line: '- **Concept** — reason'. Importance defaults to 3.
+    """
+    lines = text.splitlines()
+    bubbles: List[dict] = []
+    in_section = False
+    for line in lines:
+        l = line.strip()
+        if not in_section:
+            if l.lower().startswith("## mindmap bubbles"):
+                in_section = True
+            continue
+        # stop when another heading starts
+        if l.startswith("## ") or l.startswith("# "):
+            break
+        if l.startswith("-"):
+            # remove leading '-'
+            s = l[1:].strip()
+            # match **Concept** — reason
+            concept = None
+            reason = ""
+            if s.startswith("**"):
+                # find closing **
+                try:
+                    end = s.index("**", 2)
+                    concept = s[2:end].strip()
+                    after = s[end+2:].strip()
+                    # split on em dash or dash
+                    if after.startswith("—") or after.startswith("-"):
+                        reason = after[1:].strip()
+                    else:
+                        reason = after
+                except ValueError:
+                    concept = s.strip()
+            else:
+                # fallback: until dash
+                parts = s.split("—", 1)
+                if len(parts) == 2:
+                    concept = parts[0].strip()
+                    reason = parts[1].strip()
+                else:
+                    concept = s.strip()
+            if concept:
+                bubbles.append({"concept": concept, "reason": reason, "importance": 3})
+            if len(bubbles) >= 12:
+                break
+    return bubbles
 
 
 if __name__ == "__main__":
