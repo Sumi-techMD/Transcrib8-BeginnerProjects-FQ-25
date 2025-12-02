@@ -55,13 +55,15 @@ def build_prompt(transcript: str, title: str) -> str:
     """Build a markdown-focused prompt for structured study notes."""
     return (
         "You are an expert study assistant.\n"
-        "Create clear, exam-focused notes from the transcript.\n\n"
+        "Create clear, exam-focused notes from the transcript.\n"
+        "Analyze the transcript first, then write the notes — do NOT include your thinking steps.\n\n"
         f"Title: {title}\n\n"
         "OUTPUT FORMAT (Markdown only):\n"
         "## Summary\n"
-        "- 2-3 sentence overview.\n\n"
+        "- 2-3 sentence overview focusing on what was taught and why it matters.\n\n"
         "## Key Concepts\n"
-        "- 5-10 bullet points. Each: term - short explanation.\n\n"
+        "- 5-10 bullet points.\n"
+        "- Format each like: **Term:** short definition (max 18 words).\n\n"
         "## Important Details\n"
         "- Facts, numbers, formulas (bullet list, each line <120 chars).\n\n"
         "## Study Questions\n"
@@ -91,7 +93,30 @@ def build_json_prompt(transcript: str, title: str) -> str:
         "Rules:\n"
         " - Do not hallucinate content.\n"
         " - Provide exactly 5 study_questions (2 easy, 2 medium, 1 hard).\n"
-        " - Keep explanations concise.\n\n"
+        " - Keep explanations concise and factual.\n"
+        " - important_details should be specific facts, formulas, numbers, or named ideas.\n\n"
+         "EXAMPLE OUTPUT (Follow this format exactly):\n"
+        "{\n"
+        f'  "title": "Photosynthesis Basics",\n'
+        f'  "summary": "Photosynthesis is the process by which plants convert sunlight into chemical energy. It involves chlorophyll and occurs mainly in chloroplasts.",\n'
+        f'  "key_concepts": [\n'
+        f'    {{"term": "Chlorophyll", "explanation": "Pigment that absorbs light for photosynthesis"}},\n'
+        f'    {{"term": "Glucose", "explanation": "Sugar molecule produced by photosynthesis"}}\n'
+        f'  ],\n'
+        f'  "important_details": [\n'
+        f'    "Photosynthesis occurs in chloroplasts",\n'
+        f'    "6CO2 + 6H2O → C6H12O6 + 6O2"\n'
+        f'  ],\n'
+        f'  "study_questions": [\n'
+        f'    {{"question": "What pigment captures light?", "difficulty": "easy"}},\n'
+        f'    {{"question": "Where does photosynthesis occur?", "difficulty": "easy"}},\n'
+        f'    {{"question": "What is the purpose of glucose?", "difficulty": "medium"}},\n'
+        f'    {{"question": "Explain the chemical formula for photosynthesis.", "difficulty": "medium"}},\n'
+        f'    {{"question": "Predict how lack of sunlight affects glucose production.", "difficulty": "hard"}}\n'
+        f'  ],\n'
+        f'  "transcript_character_count": 240\n'
+        "}\n\n"
+        f'"title": "{title}"\n\n'
         "TRANSCRIPT START\n"
         f"{transcript}\n"
         "TRANSCRIPT END"
